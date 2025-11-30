@@ -1812,6 +1812,7 @@ function confirmOrder() {
 // === USANDO LÓGICA DE GESTOS ROBUSTA ===
 
 // ===============================================
+// ===============================================
 const imageData = [
     { src: 'fantasmafrente.jpeg', description: 'Hermoso paisaje de montañas al atardecer con cielo despejado y nubes rosadas.' },
     { src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', description: 'Naturaleza en su máximo esplendor, bosque verde con árboles altos.' },
@@ -2097,12 +2098,12 @@ function setupVisorListeners() {
         
         // --- DETECCIÓN DE TAP SIMPLE Y DOBLE TAP - OPTIMIZADO ---
         if (!hasMoved && e.touches.length === 0 && !isMultiTouch) {
+            e.preventDefault(); // ✅ Prevenir evento click que causa parpadeo
             const currentTime = Date.now();
             const timeSinceLastTap = currentTime - lastTapTime;
             
             if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
                 // DOBLE TAP - ZOOM (sin mostrar descripción)
-                e.preventDefault();
                 clearTimeout(tapTimeout);
                 handleDoubleClick({
                     clientX: touch.clientX,
@@ -2146,7 +2147,16 @@ function setupVisorListeners() {
 
     // Cerrar al hacer clic en el fondo (solo si no hay zoom)
     imageVisor.addEventListener('click', (e) => {
-        if (e.target === imageVisor && scale <= 1.1) {
+        // Solo para eventos de mouse, no touch
+        if (e.target === imageVisor && scale <= 1.1 && e.pointerType !== 'touch') {
+            closeVisor();
+        }
+    });
+    
+    // Cerrar con touch en el fondo
+    imageVisor.addEventListener('touchend', (e) => {
+        if (e.target === imageVisor && scale <= 1.1 && !hasMoved) {
+            e.preventDefault();
             closeVisor();
         }
     });
@@ -2158,13 +2168,6 @@ function setupVisorListeners() {
         }
     });
 }
-       
-
-
-
-
-
-
 
 
 // ===============================================
