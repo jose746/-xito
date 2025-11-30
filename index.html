@@ -1827,9 +1827,8 @@ function generateGallery() {
     galleryContainer.innerHTML = '';
     
     imageData.forEach((item, index) => {
-        // ✅ CREAR ELEMENTO CON CLASE CORRECTA
         const galleryItem = document.createElement('div');
-        galleryItem.className = 'gallery-item'; // ✅ ¡ESTO ES LO QUE FALTABA!
+        galleryItem.className = 'gallery-item';
         
         galleryItem.innerHTML = `
             <img src="${item.src}" alt="Imagen ${index + 1}">
@@ -1840,7 +1839,6 @@ function generateGallery() {
         galleryContainer.appendChild(galleryItem);
     });
 }
-
 
 /**
  * Abre el visor, carga la imagen y la descripción.
@@ -1853,7 +1851,7 @@ function openVisor(index) {
     if (imageVisor) imageVisor.classList.add('active');
     document.body.style.overflow = 'hidden';
     resetZoom();
-    showControls(); // Asegura que la X y la descripción se muestren al abrir
+    showControls();
 }
 
 function closeVisor() {
@@ -1876,9 +1874,9 @@ function updateTransform() {
     if (visorImageWrapper) {
         visorImageWrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
         // Si no hay gestos en progreso, aplica una transición suave.
-        visorImageWrapper.style.transition = (isMultiTouch || isSingleTouchMove || !imageVisor.classList.contains('active'))
+        visorImageWrapper.style.transition = (isMultiTouch || isSingleTouchMove)
             ? 'none'
-            : 'transform 0.25s ease-out';
+            : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
     }
 }
 
@@ -1919,11 +1917,9 @@ function handleDoubleClick(e) {
     if (scale <= 1.1) {
         const targetScale = 2.5;
         const rect = visorImageContainer.getBoundingClientRect();
-        // Usa las coordenadas del evento si están disponibles, sino el centro
         const clientX = e.clientX || e.touches?.[0]?.clientX || rect.left + rect.width / 2;
         const clientY = e.clientY || e.touches?.[0]?.clientY || rect.top + rect.height / 2;
         scale = targetScale;
-        // Calcula el desplazamiento para centrar el zoom en el punto del clic
         const offsetX = (rect.width / 2 - (clientX - rect.left)) * (scale - 1);
         const offsetY = (rect.height / 2 - (clientY - rect.top)) * (scale - 1);
         posX = offsetX;
@@ -1944,6 +1940,16 @@ function getDistance(touch1, touch2) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+/**
+ * Función auxiliar para calcular punto medio entre dos toques
+ */
+function getMidpoint(touch1, touch2) {
+    return {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2
+    };
+}
+
 // ===============================================
 // === 5. CONFIGURACIÓN DE LISTENERS DEL VISOR ===
 // ===============================================
@@ -1951,31 +1957,28 @@ function setupVisorListeners() {
     if (!visorImageContainer) return;
 
     // --- MANEJO DE MOUSE (Click simple y doble click) ---
+    let mouseClickCount = 0;
+    let mouseClickTimer = null;
+    
     visorImageContainer.addEventListener('click', (e) => {
-        // ✅ AGREGADO - SOLUCIÓN IPHONE
-        e.preventDefault();
-        
-        // Solo para desktop/mouse, o si la ventana no soporta touch
+        // Solo para desktop/mouse
         if (e.pointerType === 'mouse' || !('ontouchstart' in window)) {
-            const currentTime = new Date().getTime();
-            const timeSinceLastTap = currentTime - lastTapTime;
-            // Detectar doble clic
-            if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
-                e.preventDefault();
-                clearTimeout(tapTimeout);
+            mouseClickCount++;
+            
+            if (mouseClickCount === 1) {
+                mouseClickTimer = setTimeout(() => {
+                    // Clic simple - toggle controles (solo sin zoom)
+                    if (scale <= 1.1) {
+                        toggleControls();
+                    }
+                    mouseClickCount = 0;
+                }, 300);
+            } else if (mouseClickCount === 2) {
+                // Doble clic - zoom
+                clearTimeout(mouseClickTimer);
                 handleDoubleClick(e);
-                lastTapTime = 0;
-                return;
+                mouseClickCount = 0;
             }
-            // Clic simple - esperar para ver si viene otro
-            lastTapTime = currentTime;
-            clearTimeout(tapTimeout);
-            tapTimeout = setTimeout(() => {
-                // Si no hay zoom, hacer toggle de controles
-                if (scale <= 1.1) {
-                    toggleControls();
-                }
-            }, 300);
         }
     });
 
@@ -1990,7 +1993,6 @@ function setupVisorListeners() {
         scale += delta;
         scale = Math.max(1, Math.min(5, scale));
         if (scale > 1) {
-            // Ajustar posición basándose en la posición del mouse (pinchar en el punto)
             const scaleChange = scale / oldScale;
             posX = mouseX - (mouseX - posX) * scaleChange;
             posY = mouseY - (mouseY - posY) * scaleChange;
@@ -2001,24 +2003,31 @@ function setupVisorListeners() {
         updateTransform();
     }, { passive: false });
 
-    // --- MANEJO DE EVENTOS TÁCTILES (Touch Gestures) ---
+    // --- MANEJO DE EVENTOS TÁCTILES (Touch Gestures) - OPTIMIZADO ---
+    let midpointStart = { x: 0, y: 0 };
+    
     visorImageContainer.addEventListener('touchstart', (e) => {
-        // ✅ AGREGADO - SOLUCIÓN IPHONE
-        if (e.touches.length === 1) {
-            e.preventDefault();
-        }
-        
         const touches = e.touches;
         hasMoved = false;
+        
         if (touches.length === 2) {
+            // PINCH-TO-ZOOM (dos dedos) - OPTIMIZADO iOS/Android
             e.preventDefault();
             isMultiTouch = true;
             isSingleTouchMove = false;
             clearTimeout(tapTimeout);
+            
             touchStartDistance = getDistance(touches[0], touches[1]);
             touchStartScale = scale;
+            
+            // Guardar punto medio inicial
+            midpointStart = getMidpoint(touches[0], touches[1]);
+            const rect = visorImageContainer.getBoundingClientRect();
+            touchStartX = midpointStart.x - rect.left;
+            touchStartY = midpointStart.y - rect.top;
             touchStartPosX = posX;
             touchStartPosY = posY;
+            
         } else if (touches.length === 1) {
             isMultiTouch = false;
             isSingleTouchMove = false;
@@ -2031,66 +2040,87 @@ function setupVisorListeners() {
 
     visorImageContainer.addEventListener('touchmove', (e) => {
         const touches = e.touches;
-        // Solo marcar como movido si el movimiento es significativo (ej: > 10px)
-        const currentDelta = touches.length === 1
-            ? Math.abs(touches[0].clientX - touchStartX) + Math.abs(touches[0].clientY - touchStartY)
-            : 0;
-        if (currentDelta > 10 || touches.length === 2) {
-            hasMoved = true;
-        }
+        
         if (touches.length === 2 && isMultiTouch) {
-            // PINCH-TO-ZOOM
+            // PINCH-TO-ZOOM FLUIDO - OPTIMIZADO
             e.preventDefault();
+            hasMoved = true;
+            
             const currentDistance = getDistance(touches[0], touches[1]);
             const scaleChange = currentDistance / touchStartDistance;
+            
             scale = touchStartScale * scaleChange;
-            scale = Math.max(1, Math.min(scale, 5));
+            scale = Math.max(1, Math.min(5, scale));
+            
+            // Calcular posición centrada en el punto medio de los dedos
+            const midpointCurrent = getMidpoint(touches[0], touches[1]);
+            const rect = visorImageContainer.getBoundingClientRect();
+            const currentX = midpointCurrent.x - rect.left;
+            const currentY = midpointCurrent.y - rect.top;
+            
+            // Ajustar posición manteniendo el punto medio fijo
+            posX = currentX - (currentX - touchStartPosX) * (scale / touchStartScale);
+            posY = currentY - (currentY - touchStartPosY) * (scale / touchStartScale);
+            
             if (scale <= 1.01) {
                 scale = 1;
                 posX = 0;
                 posY = 0;
             }
+            
             updateTransform();
-        } else if (touches.length === 1 && scale > 1) {
-            // ARRASTRAR (PAN)
-            e.preventDefault();
-            isSingleTouchMove = true;
+            
+        } else if (touches.length === 1) {
+            // ARRASTRAR CON UN DEDO
             const deltaX = touches[0].clientX - touchStartX;
             const deltaY = touches[0].clientY - touchStartY;
-            posX = touchStartPosX + deltaX;
-            posY = touchStartPosY + deltaY;
-            // Limitación (se aplica la corrección final en touchend para ser más preciso)
-            updateTransform();
+            const totalMovement = Math.abs(deltaX) + Math.abs(deltaY);
+            
+            // Marcar como movido si supera el umbral
+            if (totalMovement > 10) {
+                hasMoved = true;
+            }
+            
+            if (scale > 1) {
+                // Solo pan cuando hay zoom
+                e.preventDefault();
+                isSingleTouchMove = true;
+                posX = touchStartPosX + deltaX;
+                posY = touchStartPosY + deltaY;
+                updateTransform();
+            }
         }
     }, { passive: false });
 
     visorImageContainer.addEventListener('touchend', (e) => {
         const touch = e.changedTouches[0];
-        // --- DOBLE TAP / TAP SIMPLE ---
+        
+        // --- DETECCIÓN DE TAP SIMPLE Y DOBLE TAP - OPTIMIZADO ---
         if (!hasMoved && e.touches.length === 0 && !isMultiTouch) {
-            const currentTime = new Date().getTime();
+            const currentTime = Date.now();
             const timeSinceLastTap = currentTime - lastTapTime;
+            
             if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+                // DOBLE TAP - ZOOM (sin mostrar descripción)
                 e.preventDefault();
                 clearTimeout(tapTimeout);
-                // Ejecutar doble tap con coordenadas del último toque
                 handleDoubleClick({
                     clientX: touch.clientX,
                     clientY: touch.clientY
                 });
                 lastTapTime = 0;
             } else {
+                // TAP SIMPLE - TOGGLE CONTROLES (solo sin zoom)
                 lastTapTime = currentTime;
                 clearTimeout(tapTimeout);
                 tapTimeout = setTimeout(() => {
-                    // ✅ CAMBIADO - SOLUCIÓN IPHONE (300 → 10)
-                    // Tap simple (solo si no hay zoom)
                     if (scale <= 1.1) {
                         toggleControls();
                     }
-                }, 10); // ✅ CAMBIADO DE 300 A 10 - SOLUCIÓN IPHONE
+                }, 300);
             }
         }
+        
         // --- LIMPIEZA Y LÍMITES (Para centrar la imagen tras el pan) ---
         if (e.touches.length === 0) {
             setTimeout(() => {
@@ -2098,19 +2128,17 @@ function setupVisorListeners() {
                 isSingleTouchMove = false;
                 hasMoved = false;
             }, 100);
+            
             // Aplicar corrección de límites si hay zoom
             if (scale > 1.05) {
                 const imgRect = visorImageWrapper.getBoundingClientRect();
                 const containerRect = visorImageContainer.getBoundingClientRect();
-                // Límite máximo de desplazamiento (media diferencia entre tamaño de imagen y contenedor)
                 const limitX = Math.max(0, (imgRect.width - containerRect.width) / 2);
                 const limitY = Math.max(0, (imgRect.height - containerRect.height) / 2);
-                // Aplicar los límites de posición
                 posX = Math.max(-limitX, Math.min(limitX, posX));
                 posY = Math.max(-limitY, Math.min(limitY, posY));
-                updateTransform(); // Aplicar corrección con animación suave
+                updateTransform();
             } else if (scale < 1.05) {
-                // Si el zoom es muy bajo, resetear completamente
                 resetZoom();
             }
         }
@@ -2130,6 +2158,14 @@ function setupVisorListeners() {
         }
     });
 }
+       
+
+
+
+
+
+
+
 
 // ===============================================
 // === 6. SECUENCIA DE INTRODUCCIÓN Y ANIMACIÓN ===
