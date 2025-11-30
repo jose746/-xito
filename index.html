@@ -1812,7 +1812,6 @@ function confirmOrder() {
 // === USANDO LÓGICA DE GESTOS ROBUSTA ===
 
 // ===============================================
-// ===============================================
 const imageData = [
     { src: 'fantasmafrente.jpeg', description: 'Hermoso paisaje de montañas al atardecer con cielo despejado y nubes rosadas.' },
     { src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', description: 'Naturaleza en su máximo esplendor, bosque verde con árboles altos.' },
@@ -2005,7 +2004,8 @@ function setupVisorListeners() {
     }, { passive: false });
 
     // --- MANEJO DE EVENTOS TÁCTILES (Touch Gestures) - OPTIMIZADO ---
-    let midpointStart = { x: 0, y: 0 };
+    let midpointStartX = 0;
+    let midpointStartY = 0;
     
     visorImageContainer.addEventListener('touchstart', (e) => {
         const touches = e.touches;
@@ -2020,14 +2020,14 @@ function setupVisorListeners() {
             
             touchStartDistance = getDistance(touches[0], touches[1]);
             touchStartScale = scale;
-            
-            // Guardar punto medio inicial
-            midpointStart = getMidpoint(touches[0], touches[1]);
-            const rect = visorImageContainer.getBoundingClientRect();
-            touchStartX = midpointStart.x - rect.left;
-            touchStartY = midpointStart.y - rect.top;
             touchStartPosX = posX;
             touchStartPosY = posY;
+            
+            // Guardar punto medio inicial en coordenadas del contenedor
+            const midpoint = getMidpoint(touches[0], touches[1]);
+            const rect = visorImageContainer.getBoundingClientRect();
+            midpointStartX = midpoint.x - rect.left;
+            midpointStartY = midpoint.y - rect.top;
             
         } else if (touches.length === 1) {
             isMultiTouch = false;
@@ -2043,30 +2043,40 @@ function setupVisorListeners() {
         const touches = e.touches;
         
         if (touches.length === 2 && isMultiTouch) {
-            // PINCH-TO-ZOOM FLUIDO - OPTIMIZADO
+            // PINCH-TO-ZOOM FLUIDO - CENTRADO PERFECTO
             e.preventDefault();
             hasMoved = true;
             
             const currentDistance = getDistance(touches[0], touches[1]);
             const scaleChange = currentDistance / touchStartDistance;
             
-            scale = touchStartScale * scaleChange;
-            scale = Math.max(1, Math.min(5, scale));
+            const newScale = touchStartScale * scaleChange;
+            const clampedScale = Math.max(1, Math.min(5, newScale));
             
-            // Calcular posición centrada en el punto medio de los dedos
-            const midpointCurrent = getMidpoint(touches[0], touches[1]);
-            const rect = visorImageContainer.getBoundingClientRect();
-            const currentX = midpointCurrent.x - rect.left;
-            const currentY = midpointCurrent.y - rect.top;
-            
-            // Ajustar posición manteniendo el punto medio fijo
-            posX = currentX - (currentX - touchStartPosX) * (scale / touchStartScale);
-            posY = currentY - (currentY - touchStartPosY) * (scale / touchStartScale);
-            
-            if (scale <= 1.01) {
+            if (clampedScale <= 1.01) {
+                // Reset completo si el zoom es muy pequeño
                 scale = 1;
                 posX = 0;
                 posY = 0;
+            } else {
+                // Calcular el punto medio actual
+                const midpoint = getMidpoint(touches[0], touches[1]);
+                const rect = visorImageContainer.getBoundingClientRect();
+                const midpointCurrentX = midpoint.x - rect.left;
+                const midpointCurrentY = midpoint.y - rect.top;
+                
+                // Calcular el cambio de escala desde el inicio
+                const scaleRatio = clampedScale / touchStartScale;
+                
+                // Ajustar la posición para mantener el punto medio fijo
+                // La fórmula correcta: nueva_pos = pos_inicial + (punto_medio - centro) * (1 - ratio_escala)
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                posX = touchStartPosX + (midpointStartX - centerX) * (1 - scaleRatio);
+                posY = touchStartPosY + (midpointStartY - centerY) * (1 - scaleRatio);
+                
+                scale = clampedScale;
             }
             
             updateTransform();
@@ -2168,7 +2178,6 @@ function setupVisorListeners() {
         }
     });
 }
-
 
 // ===============================================
 // === 6. SECUENCIA DE INTRODUCCIÓN Y ANIMACIÓN ===
