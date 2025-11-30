@@ -1094,7 +1094,7 @@ canvas {
 .logo-img {
     width: 100%;
     height: 100%;
-    background-image: url('transparetlog.PNG'); /* Reemplaza con la ruta de tu imagen */
+    background-image: url('logolion.JPG'); /* Reemplaza con la ruta de tu imagen */
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -1783,7 +1783,7 @@ function confirmOrder() {
         return;
     }
 
-    let message = `🌟 *NUEVO PEDIDO - NEON SHOP* 🌟\n\n`;
+    let message = `🌟 *NUEVO PEDIDO - EVOLOCION* 🌟\n\n`;
     message += `👤 *Cliente:* ${name}\n`;
     message += `📏 *Talla:* ${size}\n`;
     message += `🎨 *Estilo:* ${style}\n`;
@@ -1799,7 +1799,7 @@ function confirmOrder() {
     message += `\n💰 *TOTAL:* $${total} \n\n`;
     message += `¡Gracias por tu compra! 🚀`;
 
-    const whatsappNumber = '5212221234567'; 
+    const whatsappNumber = '+14088541865'; 
     const encodedMessage = encodeURIComponent(message);
     const whatsappURL = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
 
@@ -1813,12 +1813,12 @@ function confirmOrder() {
 
 // ===============================================
 const imageData = [
-    { src: 'fantasmafrente.jpeg', description: 'Hermoso paisaje de montañas al atardecer con cielo despejado y nubes rosadas.' },
-    { src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', description: 'Naturaleza en su máximo esplendor, bosque verde con árboles altos.' },
-    { src: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=800', description: 'Playa paradisíaca con arena blanca y agua cristalina color turquesa.' },
-    { src: 'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=800', description: 'Atardecer en el campo con flores silvestres y cielo naranja.' },
-    { src: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800', description: 'Lago tranquilo rodeado de montañas con reflejo perfecto en el agua.' },
-    { src: 'https://images.unsplash-lite.com/photo-1441974231531-c6227db76b6e?w=800', description: 'Sendero en el bosque con luz del sol filtrándose entre los árboles.' }
+    { src: 'superfrente.jpeg', description: 'Hermoso paisaje de montañas al atardecer con cielo despejado y nubes rosadas.' },
+    { src: 'superdetras.jpeg', description: 'Naturaleza en su máximo esplendor, bosque verde con árboles altos.' },
+    { src: 'fantasmafrente.jpeg', description: 'Playa paradisíaca con arena blanca y agua cristalina color turquesa.' },
+    { src: 'messii.jpeg', description: 'Atardecer en el campo con flores silvestres y cielo naranja.' },
+    { src: 'perrofrente.jpeg', description: 'Lago tranquilo rodeado de montañas con reflejo perfecto en el agua.' },
+    { src: 'perrodetras.jpeg', description: 'Sendero en el bosque con luz del sol filtrándose entre los árboles.' }
 ];
 
 function generateGallery() {
